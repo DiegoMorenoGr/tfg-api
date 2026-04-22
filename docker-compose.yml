@@ -3,7 +3,7 @@ services:
     build: .
     container_name: tfg-api
     ports:
-      - "8000:8000"
+      - "8001:8000"
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgresql://buffas:Torero1234.@187.77.175.78:32772/tfg_emails"
