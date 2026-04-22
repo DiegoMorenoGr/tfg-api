@@ -3,12 +3,12 @@ from typing import Optional, Literal
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql://tfg_user:tfg_password@localhost:5432/tfg_emails"
+    DATABASE_URL: str
     API_KEY: Optional[str] = ""
     DEFAULT_ENGINE: Literal["keywords", "gemini"] = "gemini"
 
     GEMINI_API_KEY: Optional[str] = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     CONFIDENCE_THRESHOLD: float = 0.6
 
