@@ -6,7 +6,7 @@ services:
       - "8001:8000"
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://buffas:Torero1234.@187.77.175.78:32774/tfg_emails"
+      DATABASE_URL: "postgresql://buffas:Torero123.@187.77.175.78:32776/tfg_emails"
       GEMINI_API_KEY: "AIzaSyDj0Mj-wik3kdBge_zNYsJuLRJTTOzeZvs"
       GEMINI_MODEL: "gemini-2.5-flash-lite"
       DEFAULT_ENGINE: "gemini"
