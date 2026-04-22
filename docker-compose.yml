@@ -1,5 +1,5 @@
 services:
-  tfg-api:
+  tfg-api-v2:
     build: .
     container_name: tfg-api-v2
     ports:
