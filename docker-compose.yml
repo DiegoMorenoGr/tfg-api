@@ -6,9 +6,9 @@ services:
       - "8000:8000"
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL}
-      DEFAULT_ENGINE: ${DEFAULT_ENGINE}
-      CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD}
-      API_KEY: ${API_KEY}
+      DATABASE_URL: "postgresql://buffas:Torero123.@187.77.175.78:32772/tfg_emails"
+      GEMINI_API_KEY: "AIzaSyCvrLLcr2TZejFJFVFP6MiJm-I1HbKwgBA"
+      GEMINI_MODEL: "gemini-2.5-flash-lite"
+      DEFAULT_ENGINE: "gemini"
+      CONFIDENCE_THRESHOLD: "0.6"
+      API_KEY: "tfg_diego"
