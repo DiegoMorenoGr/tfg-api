@@ -5,3 +5,10 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      DEFAULT_ENGINE: ${DEFAULT_ENGINE}
+      CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD}
+      API_KEY: ${API_KEY}
