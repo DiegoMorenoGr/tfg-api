@@ -46,6 +46,7 @@ async def classify_email(
     snippet: str,
     body: str,
     engine: str | None = None,
+    available_categories: list[str] | None = None,
 ) -> dict:
     selected_engine = engine or settings.DEFAULT_ENGINE
 
@@ -56,7 +57,13 @@ async def classify_email(
     else:
         try:
             logger.info("Clasificando mensaje %s con Gemini", message_id)
-            raw_result = await gemini_engine.classify(subject, sender, snippet, body)
+            raw_result = await gemini_engine.classify(
+                subject,
+                sender,
+                snippet,
+                body,
+                available_categories=available_categories,
+            )
             normalized = _normalize_result(raw_result)
             final_engine = "gemini"
         except Exception:

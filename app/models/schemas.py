@@ -21,6 +21,10 @@ class ClassifyRequest(BaseModel):
         None,
         description="Motor a usar. Si no se indica, se usa DEFAULT_ENGINE del .env"
     )
+    available_categories: Optional[list[str]] = Field(
+        None,
+        description="Lista opcional de categorías disponibles del usuario. Si se indica, Gemini debe clasificar usando una de ellas."
+    )
 
     class Config:
         json_schema_extra = {
@@ -30,7 +34,15 @@ class ClassifyRequest(BaseModel):
                 "sender": "billing@empresa.com",
                 "snippet": "Adjuntamos su factura correspondiente al mes de marzo...",
                 "body": "Estimado cliente, le remitimos la factura número 2026-03-042...",
-                "engine": "gemini"
+                "engine": "gemini",
+                "available_categories": [
+                    "Compras",
+                    "Universidad",
+                    "Trabajo",
+                    "Familia",
+                    "TFG/Phishing",
+                    "TFG/Revisar"
+                ]
             }
         }
 

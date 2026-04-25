@@ -24,13 +24,14 @@ router = APIRouter(
 async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db)):
     try:
         result = await classify_email(
-            message_id=email.message_id,
-            subject=email.subject,
-            sender=email.sender,
-            snippet=email.snippet,
-            body=email.body,
-            engine=email.engine,
-        )
+        message_id=email.message_id,
+        subject=email.subject,
+        sender=email.sender,
+        snippet=email.snippet,
+        body=email.body,
+        engine=email.engine,
+        available_categories=email.available_categories,
+    )
 
         existing = (
             db.query(Classification)
