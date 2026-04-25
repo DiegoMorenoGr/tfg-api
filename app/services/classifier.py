@@ -70,6 +70,7 @@ async def classify_email(
     available_categories: list[str] | None = None,
 ) -> dict:
     logger.info("Categorías recibidas: %s", available_categories)
+    logger.info("VERSION NUEVA API - 25/04 - DEBUG OK")
 
     selected_engine = engine or settings.DEFAULT_ENGINE
 
