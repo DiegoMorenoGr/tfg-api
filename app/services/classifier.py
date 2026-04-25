@@ -19,15 +19,36 @@ def _safe_float(value, default=0.0) -> float:
         return default
 
 
-def _normalize_result(result: dict) -> dict:
-    valid_categories = set(CATEGORIES.keys())
+def _normalize_result(result: dict, available_categories: list[str] | None = None) -> dict:
+    """
+    Normaliza el resultado del motor (Gemini o keywords)
+    y valida la categoría contra las disponibles.
+    """
+
+    if available_categories:
+        valid_categories = set(available_categories)
+    else:
+        valid_categories = set(CATEGORIES.keys())
 
     category = result.get("category", "revisar")
-    if category not in valid_categories:
-        category = "revisar"
 
-    confidence = round(max(0.0, min(1.0, _safe_float(result.get("confidence", 0.0)))), 3)
-    phishing_score = round(max(0.0, min(1.0, _safe_float(result.get("phishing_score", 0.0)))), 3)
+    if category not in valid_categories:
+        if "TFG/Revisar" in valid_categories:
+            category = "TFG/Revisar"
+        elif "revisar" in valid_categories:
+            category = "revisar"
+        else:
+            category = next(iter(valid_categories))
+
+    confidence = round(
+        max(0.0, min(1.0, _safe_float(result.get("confidence", 0.0)))),
+        3
+    )
+
+    phishing_score = round(
+        max(0.0, min(1.0, _safe_float(result.get("phishing_score", 0.0)))),
+        3
+    )
 
     explanation = result.get("explanation") or "Sin explicación."
 
@@ -48,15 +69,24 @@ async def classify_email(
     engine: str | None = None,
     available_categories: list[str] | None = None,
 ) -> dict:
+
     selected_engine = engine or settings.DEFAULT_ENGINE
 
+    # ---------------------
+    # MOTOR KEYWORDS
+    # ---------------------
     if selected_engine == "keywords":
         raw_result = keywords.classify(subject, sender, snippet, body)
         normalized = _normalize_result(raw_result)
         final_engine = "keywords"
+
+    # ---------------------
+    # MOTOR GEMINI
+    # ---------------------
     else:
         try:
             logger.info("Clasificando mensaje %s con Gemini", message_id)
+
             raw_result = await gemini_engine.classify(
                 subject,
                 sender,
@@ -64,26 +94,44 @@ async def classify_email(
                 body,
                 available_categories=available_categories,
             )
-            normalized = _normalize_result(raw_result)
+
+            normalized = _normalize_result(raw_result, available_categories)
             final_engine = "gemini"
+
         except Exception:
             logger.exception(
                 "Gemini falló para message_id=%s. Usando fallback keywords.",
                 message_id,
             )
+
             raw_result = keywords.classify(subject, sender, snippet, body)
             normalized = _normalize_result(raw_result)
             final_engine = "keywords"
 
     category = normalized["category"]
 
+    # ---------------------
+    # AJUSTES DE SEGURIDAD
+    # ---------------------
     if normalized["phishing_score"] >= 0.75:
-        category = "phishing"
+        if available_categories and "TFG/Phishing" in available_categories:
+            category = "TFG/Phishing"
+        else:
+            category = "phishing"
 
     elif normalized["confidence"] < settings.CONFIDENCE_THRESHOLD:
-        category = "revisar"
+        if available_categories and "TFG/Revisar" in available_categories:
+            category = "TFG/Revisar"
+        else:
+            category = "revisar"
 
-    label_name = CATEGORIES.get(category, "TFG/Revisar")
+    # ---------------------
+    # MAPEO A LABEL FINAL
+    # ---------------------
+    if category in CATEGORIES:
+        label_name = CATEGORIES[category]
+    else:
+        label_name = category
 
     return {
         "message_id": message_id,
