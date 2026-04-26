@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.database import create_tables
-from app.routers import classify, stats
+from app.routers import classify, stats, reports
 from app.core.config import settings
 
 logging.basicConfig(
@@ -44,3 +44,4 @@ async def health():
 
 app.include_router(classify.router)
 app.include_router(stats.router)
+app.include_router(reports.router)
