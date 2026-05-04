@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emails Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 24px;
+        }
+
+        h2 {
+            margin-bottom: 24px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        input, select, button {
+            padding: 6px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .empty {
+            margin-top: 20px;
+            color: #666;
+        }
+
+        .risk-low {
+            color: green;
+            font-weight: bold;
+        }
+
+        .risk-medium {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .risk-high {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Emails procesados</h2>
+
+<div class="filters">
+    <label>
+        Categoría:
+        <select id="category">
+            <option value="">Todas</option>
+        </select>
+    </label>
+
+    <label>
+        Remitente:
+        <input id="sender" placeholder="gmail.com">
+    </label>
+
+    <label>
+        Sujeto:
+        <input id="subject" placeholder="factura">
+    </label>
+
+    <label>
+        Max Phishing:
+        <input id="max_phishing" type="number" step="0.01" min="0" max="1" placeholder="0.10">
+    </label>
+
+    <button onclick="loadEmails()">Buscar</button>
+    <button onclick="clearFilters()">Limpiar</button>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Sujeto</th>
+            <th>Fecha</th>
+            <th>Remitente</th>
+            <th>Categoría</th>
+            <th>% Phishing</th>
+        </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+</table>
+
+<div id="emptyMessage" class="empty"></div>
+
+<script>
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+async function loadCategories() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/emails/categories`);
+
+        if (!response.ok) {
+            throw new Error("No se pudieron cargar las categorías");
+        }
+
+        const categories = await response.json();
+        const select = document.getElementById("category");
+
+        categories.forEach(category => {
+            const option = document.createElement("option");
+            option.value = category;
+            option.textContent = category;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+async function loadEmails() {
+    const category = document.getElementById("category").value;
+    const sender = document.getElementById("sender").value;
+    const subject = document.getElementById("subject").value;
+    const maxPhishing = document.getElementById("max_phishing").value;
+
+    const params = new URLSearchParams();
+
+    if (category) params.append("category", category);
+    if (sender) params.append("sender", sender);
+    if (subject) params.append("subject", subject);
+    if (maxPhishing) params.append("max_phishing", maxPhishing);
+
+    const url = `${API_BASE_URL}/emails?${params.toString()}`;
+
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error("Error al cargar los correos");
+        }
+
+        const data = await response.json();
+
+        const table = document.getElementById("tableBody");
+        const emptyMessage = document.getElementById("emptyMessage");
+
+        table.innerHTML = "";
+        emptyMessage.innerHTML = "";
+
+        if (data.length === 0) {
+            emptyMessage.innerHTML = "No se han encontrado correos con los filtros seleccionados.";
+            return;
+        }
+
+        data.forEach(email => {
+            const row = document.createElement("tr");
+
+            const subject = email.gmail_url
+                ? `<a href="${email.gmail_url}" target="_blank">${email.subject || "Sin sujeto"}</a>`
+                : (email.subject || "Sin sujeto");
+
+            const phishingPercent = email.phishing_score !== null
+                ? (email.phishing_score * 100).toFixed(1)
+                : "0.0";
+
+            const riskClass = getRiskClass(email.phishing_score);
+
+            row.innerHTML = `
+                <td>${subject}</td>
+                <td>${formatDate(email.timestamp)}</td>
+                <td>${email.sender || ""}</td>
+                <td>${email.category || "Sin categoría"}</td>
+                <td class="${riskClass}">${phishingPercent}%</td>
+            `;
+
+            table.appendChild(row);
+        });
+    } catch (error) {
+        console.error(error);
+        document.getElementById("emptyMessage").innerHTML =
+            "Ha ocurrido un error cargando los correos. Revisa la consola o el endpoint /emails.";
+    }
+}
+
+function getRiskClass(score) {
+    if (score === null || score === undefined) return "risk-low";
+    if (score >= 0.75) return "risk-high";
+    if (score >= 0.40) return "risk-medium";
+    return "risk-low";
+}
+
+function formatDate(timestamp) {
+    if (!timestamp) return "";
+
+    const date = new Date(timestamp);
+    return date.toLocaleDateString("es-ES") + " " + date.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+function clearFilters() {
+    document.getElementById("category").value = "";
+    document.getElementById("sender").value = "";
+    document.getElementById("subject").value = "";
+    document.getElementById("max_phishing").value = "";
+
+    loadEmails();
+}
+
+window.onload = async function () {
+    await loadCategories();
+    await loadEmails();
+};
+</script>
+
+</body>
+</html>

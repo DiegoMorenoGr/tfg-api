@@ -13,6 +13,18 @@ class ClassifyRequest(BaseModel):
         max_length=255,
         description="ID único del mensaje en Gmail"
     )
+
+    gmail_message_id: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="ID interno del mensaje en Gmail para generar el enlace directo"
+    )
+
+    gmail_url: Optional[str] = Field(
+        None,
+        description="URL directa al correo original en Gmail"
+    )
+
     subject: Optional[str] = Field("", description="Asunto del correo")
     sender: Optional[str] = Field("", description="Dirección del remitente")
     snippet: Optional[str] = Field("", description="Fragmento corto del cuerpo")
@@ -30,6 +42,8 @@ class ClassifyRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "message_id": "18f3a2b1c4d5e6f7",
+                "gmail_message_id": "18f3a2b1c4d5e6f7",
+                "gmail_url": "https://mail.google.com/mail/u/0/#all/18f3a2b1c4d5e6f7",
                 "subject": "Factura marzo 2026",
                 "sender": "billing@empresa.com",
                 "snippet": "Adjuntamos su factura correspondiente al mes de marzo...",
@@ -45,7 +59,6 @@ class ClassifyRequest(BaseModel):
                 ]
             }
         }
-
 
 class ClassifyResponse(BaseModel):
     message_id: str

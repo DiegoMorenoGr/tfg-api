@@ -35,6 +35,9 @@ class Classification(Base):
     subject         = Column(Text, nullable=True)
     sender          = Column(String(255), nullable=True)
 
+    gmail_message_id = Column(String(255), nullable=True)
+    gmail_url = Column(Text, nullable=True)
+
     # Resultado de la clasificación
     category        = Column(String(50), index=True)               
     label_name      = Column(String(100))                             

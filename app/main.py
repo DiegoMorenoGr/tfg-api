@@ -5,6 +5,9 @@ from fastapi import FastAPI
 from app.core.database import create_tables
 from app.routers import classify, stats, reports
 
+from fastapi.staticfiles import StaticFiles
+from app.routers import emails
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
@@ -28,3 +31,6 @@ async def health():
 app.include_router(classify.router)
 app.include_router(stats.router)
 app.include_router(reports.router)
+
+app.mount("/web", StaticFiles(directory="app/static", html=True), name="web")
+app.include_router(emails.router)
