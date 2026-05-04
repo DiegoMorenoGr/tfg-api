@@ -1,9 +1,9 @@
 services:
   tfg-api-v2:
     build: .
-    container_name: tfg-api-v3
+    container_name: tfg-api-v4
     ports:
-      - "8001:8000"
+      - "8002:8000"
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
