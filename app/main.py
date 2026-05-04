@@ -7,6 +7,7 @@ from app.routers import classify, stats, reports
 
 from fastapi.staticfiles import StaticFiles
 from app.routers import emails
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,5 +33,8 @@ app.include_router(classify.router)
 app.include_router(stats.router)
 app.include_router(reports.router)
 
-app.mount("/web", StaticFiles(directory="app/static", html=True), name="web")
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+
+app.mount("/web", StaticFiles(directory=str(STATIC_DIR), html=True), name="web")
 app.include_router(emails.router)
