@@ -56,3 +56,7 @@ def web_test():
     return FileResponse(STATIC_DIR / "index.html")
 
 app.mount("/web", StaticFiles(directory=str(STATIC_DIR), html=True), name="web")
+
+@app.get("/version-test")
+def version_test():
+    return {"version": "vps-test-123"}
