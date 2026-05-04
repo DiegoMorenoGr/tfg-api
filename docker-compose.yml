@@ -1,7 +1,7 @@
 services:
   tfg-api-v2:
     build: .
-    container_name: tfg-api-v4
+    container_name: tfg-api-v5
     ports:
       - "8002:8000"
     restart: unless-stopped
