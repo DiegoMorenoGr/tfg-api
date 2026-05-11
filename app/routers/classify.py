@@ -24,14 +24,14 @@ router = APIRouter(
 async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db)):
     try:
         result = await classify_email(
-        message_id=email.message_id,
-        subject=email.subject,
-        sender=email.sender,
-        snippet=email.snippet,
-        body=email.body,
-        engine=email.engine,
-        available_categories=email.available_categories,
-    )
+            message_id=email.message_id,
+            subject=email.subject,
+            sender=email.sender,
+            snippet=email.snippet,
+            body=email.body,
+            engine=email.engine,
+            available_categories=email.available_categories,
+        )
 
         existing = (
             db.query(Classification)
@@ -40,6 +40,9 @@ async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db
         )
 
         if existing:
+            existing.gmail_message_id = email.gmail_message_id
+            existing.gmail_url = email.gmail_url
+
             existing.subject = email.subject
             existing.sender = email.sender
             existing.category = result["category"]
@@ -51,6 +54,8 @@ async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db
         else:
             record = Classification(
                 message_id=email.message_id,
+                gmail_message_id=email.gmail_message_id,
+                gmail_url=email.gmail_url,
                 subject=email.subject,
                 sender=email.sender,
                 category=result["category"],
