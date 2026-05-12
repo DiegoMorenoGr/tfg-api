@@ -33,7 +33,9 @@ def _normalize_result(result: dict, available_categories: list[str] | None = Non
     category = result.get("category", "revisar")
 
     if category not in valid_categories:
-        if "TFG/Revisar" in valid_categories:
+        if "Revisar" in valid_categories:
+            category = "Revisar"
+        elif "TFG/Revisar" in valid_categories:
             category = "TFG/Revisar"
         elif "revisar" in valid_categories:
             category = "revisar"
@@ -112,17 +114,21 @@ async def classify_email(
 
     category = normalized["category"]
 
-    # ---------------------
-    # AJUSTES DE SEGURIDAD
-    # ---------------------
+# ---------------------
+# AJUSTES DE SEGURIDAD
+# ---------------------
     if normalized["phishing_score"] >= 0.75:
-        if available_categories and "TFG/Phishing" in available_categories:
+        if available_categories and "Phishing" in available_categories:
+            category = "Phishing"
+        elif available_categories and "TFG/Phishing" in available_categories:
             category = "TFG/Phishing"
         else:
             category = "phishing"
 
     elif normalized["confidence"] < settings.CONFIDENCE_THRESHOLD:
-        if available_categories and "TFG/Revisar" in available_categories:
+        if available_categories and "Revisar" in available_categories:
+            category = "Revisar"
+        elif available_categories and "TFG/Revisar" in available_categories:
             category = "TFG/Revisar"
         else:
             category = "revisar"

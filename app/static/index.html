@@ -79,12 +79,14 @@
 
     <label>
         Remitente:
-        <input id="sender" placeholder="gmail.com">
+        <input id="sender" list="senderSuggestions" placeholder="gmail.com">
+        <datalist id="senderSuggestions"></datalist>
     </label>
 
     <label>
         Sujeto:
-        <input id="subject" placeholder="factura">
+        <input id="subject" list="subjectSuggestions" placeholder="factura">
+        <datalist id="subjectSuggestions"></datalist>
     </label>
 
     <label>
@@ -201,6 +203,51 @@ async function loadEmails() {
     }
 }
 
+async function loadSuggestions() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/emails/`);
+
+        if (!response.ok) {
+            throw new Error("No se pudieron cargar las sugerencias");
+        }
+
+        const emails = await response.json();
+
+        const senders = new Set();
+        const subjects = new Set();
+
+        emails.forEach(email => {
+            if (email.sender) {
+                senders.add(email.sender);
+            }
+
+            if (email.subject) {
+                subjects.add(email.subject);
+            }
+        });
+
+        fillDatalist("senderSuggestions", senders);
+        fillDatalist("subjectSuggestions", subjects);
+
+    } catch (error) {
+        console.error("Error cargando sugerencias:", error);
+    }
+}
+
+
+function fillDatalist(datalistId, values) {
+    const datalist = document.getElementById(datalistId);
+    datalist.innerHTML = "";
+
+    Array.from(values)
+        .sort()
+        .forEach(value => {
+            const option = document.createElement("option");
+            option.value = value;
+            datalist.appendChild(option);
+        });
+}
+
 function getRiskClass(score) {
     if (score === null || score === undefined) return "risk-low";
     if (score >= 0.75) return "risk-high";
@@ -229,6 +276,7 @@ function clearFilters() {
 
 window.onload = async function () {
     await loadCategories();
+    await loadSuggestions();
     await loadEmails();
 };
 </script>
