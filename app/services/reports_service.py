@@ -34,9 +34,9 @@ def get_monthly_records(db: Session, year: int | None = None, month: int | None 
 
     records = (
         db.query(Classification)
-        .filter(Classification.timestamp >= start_date)
-        .filter(Classification.timestamp <= end_date)
-        .order_by(Classification.timestamp.asc())
+        .filter(Classification.email_timestamp >= start_date)
+        .filter(Classification.email_timestamp <= end_date)
+        .order_by(Classification.email_timestamp.asc())
         .all()
     )
 
@@ -84,8 +84,8 @@ def _get_phishing_level(score: float | None) -> str:
 
 
 def _week_label(timestamp: datetime) -> str:
-    iso_year, iso_week, _ = timestamp.isocalendar()
-    return f"{iso_year}-W{iso_week}"
+    week_of_month = ((timestamp.day - 1) // 7) + 1
+    return f"Semana {week_of_month}"
 
 
 def generate_monthly_excel(db: Session, year: int | None = None, month: int | None = None) -> BytesIO:
@@ -102,32 +102,16 @@ def generate_monthly_excel(db: Session, year: int | None = None, month: int | No
     ws["A1"] = f"Reporte mensual de correos - {month}/{year}"
     ws["A1"].font = Font(bold=True, size=14)
 
-    # Tabla principal
-    headers = [
-        "Sujeto",
-        "Remitente",
-        "Categoría",
-        "Nivel de phishing",
-    ]
-
-    start_row = 3
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=start_row, column=col, value=header)
-        cell.font = Font(bold=True)
-
+    # ----------------------------------------------------------
+    # 1. Resumen por categoría
+    # ----------------------------------------------------------
     category_counts = defaultdict(int)
 
-    for row_index, r in enumerate(records, start=start_row + 1):
+    for r in records:
         category = r.category or "Sin categoría"
         category_counts[category] += 1
 
-        ws.cell(row=row_index, column=1, value=r.subject)
-        ws.cell(row=row_index, column=2, value=r.sender)
-        ws.cell(row=row_index, column=3, value=category)
-        ws.cell(row=row_index, column=4, value=_get_phishing_level(r.phishing_score))
-
-    # Resumen por categoría debajo
-    summary_start = start_row + len(records) + 3
+    summary_start = 3
 
     ws.cell(row=summary_start, column=1, value="Total por categoría")
     ws.cell(row=summary_start, column=1).font = Font(bold=True, size=12)
@@ -144,7 +128,9 @@ def generate_monthly_excel(db: Session, year: int | None = None, month: int | No
         ws.cell(row=i, column=1, value=category)
         ws.cell(row=i, column=2, value=total)
 
-    # Gráfica de barras por categoría
+    # ----------------------------------------------------------
+    # 2. Gráfica de barras por categoría
+    # ----------------------------------------------------------
     if category_counts:
         chart = BarChart()
         chart.title = "Total de correos por categoría"
@@ -172,12 +158,39 @@ def generate_monthly_excel(db: Session, year: int | None = None, month: int | No
 
         ws.add_chart(chart, f"D{summary_start}")
 
+    # ----------------------------------------------------------
+    # 3. Tabla principal de correos
+    # ----------------------------------------------------------
+    start_row = summary_start + len(category_counts) + 12
+
+    ws.cell(row=start_row - 1, column=1, value="Detalle de correos")
+    ws.cell(row=start_row - 1, column=1).font = Font(bold=True, size=12)
+
+    headers = [
+        "Sujeto",
+        "Remitente",
+        "Categoría",
+        "Nivel de phishing",
+    ]
+
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=start_row, column=col, value=header)
+        cell.font = Font(bold=True)
+
+    for row_index, r in enumerate(records, start=start_row + 1):
+        category = r.category or "Sin categoría"
+
+        ws.cell(row=row_index, column=1, value=r.subject)
+        ws.cell(row=row_index, column=2, value=r.sender)
+        ws.cell(row=row_index, column=3, value=category)
+        ws.cell(row=row_index, column=4, value=_get_phishing_level(r.phishing_score))
+
     # ==========================================================
     # HOJA 2: Evolución semanal
     # ==========================================================
     ws_weekly = wb.create_sheet("Correos por semana")
 
-    ws_weekly["A1"] = "Evolución semanal de correos por categoría"
+    ws_weekly["A1"] = f"Correos por semana - Mes {month}/{year}"
     ws_weekly["A1"].font = Font(bold=True, size=14)
 
     weekly_counts = defaultdict(lambda: defaultdict(int))
@@ -185,10 +198,12 @@ def generate_monthly_excel(db: Session, year: int | None = None, month: int | No
     weeks = set()
 
     for r in records:
-        if not r.timestamp:
+        email_date = r.email_timestamp or r.timestamp
+
+        if not email_date:
             continue
 
-        week = _week_label(r.timestamp)
+        week = _week_label(email_date)
         category = r.category or "Sin categoría"
 
         weekly_counts[week][category] += 1
@@ -220,7 +235,7 @@ def generate_monthly_excel(db: Session, year: int | None = None, month: int | No
     # Gráfica de líneas
     if sorted_weeks and sorted_categories:
         line_chart = LineChart()
-        line_chart.title = "Correos por semana y categoría"
+        line_chart.title = f"Correos por semana - Mes {month}/{year}"
         line_chart.x_axis.title = "Semana"
         line_chart.y_axis.title = "Número de correos"
 
