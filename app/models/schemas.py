@@ -38,6 +38,11 @@ class ClassifyRequest(BaseModel):
         description="Lista opcional de categorías disponibles del usuario. Si se indica, Gemini debe clasificar usando una de ellas."
     )
 
+    email_timestamp: Optional[datetime] = Field(
+    None,
+    description="Fecha y hora real de recepción del correo"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {

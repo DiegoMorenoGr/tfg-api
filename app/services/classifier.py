@@ -6,10 +6,21 @@ Fallback automático: keywords
 """
 
 import logging
+
 from app.core.config import settings, CATEGORIES
 from app.services import keywords, gemini_engine
 
 logger = logging.getLogger(__name__)
+
+
+PHISHING_BREAKDOWN_KEYS = {
+    "urgency": 0.0,
+    "sensitive_data_request": 0.0,
+    "suspicious_links_or_actions": 0.0,
+    "suspicious_sender": 0.0,
+    "alarmist_language": 0.0,
+    "impersonation": 0.0,
+}
 
 
 def _safe_float(value, default=0.0) -> float:
@@ -17,6 +28,25 @@ def _safe_float(value, default=0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _normalize_breakdown(value) -> dict:
+    """
+    Normaliza el desglose de phishing para asegurar que siempre existen
+    las mismas claves y que todos los valores están entre 0.0 y 1.0.
+    """
+    if not isinstance(value, dict):
+        value = {}
+
+    normalized = {}
+
+    for key, default_value in PHISHING_BREAKDOWN_KEYS.items():
+        normalized[key] = round(
+            max(0.0, min(1.0, _safe_float(value.get(key, default_value)))),
+            3,
+        )
+
+    return normalized
 
 
 def _normalize_result(result: dict, available_categories: list[str] | None = None) -> dict:
@@ -52,12 +82,17 @@ def _normalize_result(result: dict, available_categories: list[str] | None = Non
         3
     )
 
+    phishing_breakdown = _normalize_breakdown(
+        result.get("phishing_breakdown")
+    )
+
     explanation = result.get("explanation") or "Sin explicación."
 
     return {
         "category": category,
         "confidence": confidence,
         "phishing_score": phishing_score,
+        "phishing_breakdown": phishing_breakdown,
         "explanation": explanation,
     }
 
@@ -72,7 +107,7 @@ async def classify_email(
     available_categories: list[str] | None = None,
 ) -> dict:
     logger.info("Categorías recibidas: %s", available_categories)
-    logger.info("VERSION NUEVA API - 25/04 - DEBUG OK")
+    logger.info("VERSION NUEVA API - PHISHING BREAKDOWN OK")
 
     selected_engine = engine or settings.DEFAULT_ENGINE
 
@@ -81,7 +116,7 @@ async def classify_email(
     # ---------------------
     if selected_engine == "keywords":
         raw_result = keywords.classify(subject, sender, snippet, body)
-        normalized = _normalize_result(raw_result)
+        normalized = _normalize_result(raw_result, available_categories)
         final_engine = "keywords"
 
     # ---------------------
@@ -109,14 +144,14 @@ async def classify_email(
             )
 
             raw_result = keywords.classify(subject, sender, snippet, body)
-            normalized = _normalize_result(raw_result)
+            normalized = _normalize_result(raw_result, available_categories)
             final_engine = "keywords"
 
     category = normalized["category"]
 
-# ---------------------
-# AJUSTES DE SEGURIDAD
-# ---------------------
+    # ---------------------
+    # AJUSTES DE SEGURIDAD
+    # ---------------------
     if normalized["phishing_score"] >= 0.75:
         if available_categories and "Phishing" in available_categories:
             category = "Phishing"
@@ -147,6 +182,7 @@ async def classify_email(
         "label_name": label_name,
         "confidence": normalized["confidence"],
         "phishing_score": normalized["phishing_score"],
+        "phishing_breakdown": normalized["phishing_breakdown"],
         "engine_used": final_engine,
         "explanation": normalized["explanation"],
     }

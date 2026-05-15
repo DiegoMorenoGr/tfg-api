@@ -62,6 +62,50 @@
             color: red;
             font-weight: bold;
         }
+        
+        .phishing-cell {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 260px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px;
+            position: fixed;
+            z-index: 1000;
+            font-size: 12px;
+            line-height: 1.4;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            pointer-events: none;
+        }
+
+        .phishing-cell:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 3px;
+        }
+
+        .tooltip-row span {
+            max-width: 190px;
+        }
+
+        .tooltip-row strong {
+            white-space: nowrap;
+        }
+        
     </style>
 </head>
 
@@ -92,6 +136,15 @@
     <label>
         Max Phishing:
         <input id="max_phishing" type="number" step="0.01" min="0" max="1" placeholder="0.10">
+    </label>
+
+    <label>
+        Orden fecha:
+        <select id="sort_by">
+            <option value=""></option>
+            <option value="email_desc">Más reciente primero</option>
+            <option value="email_asc">Más antiguo primero</option>
+        </select>
     </label>
 
     <button onclick="loadEmails()">Buscar</button>
@@ -143,6 +196,7 @@ async function loadEmails() {
     const sender = document.getElementById("sender").value;
     const subject = document.getElementById("subject").value;
     const maxPhishing = document.getElementById("max_phishing").value;
+    const sortBy = document.getElementById("sort_by").value;
 
     const params = new URLSearchParams();
 
@@ -150,6 +204,7 @@ async function loadEmails() {
     if (sender) params.append("sender", sender);
     if (subject) params.append("subject", subject);
     if (maxPhishing) params.append("max_phishing", maxPhishing);
+    if (sortBy) params.append("sort_by", sortBy);
 
     const url = `${API_BASE_URL}/emails?${params.toString()}`;
 
@@ -191,7 +246,12 @@ async function loadEmails() {
                 <td>${formatDate(email.timestamp)}</td>
                 <td>${email.sender || ""}</td>
                 <td>${email.category || "Sin categoría"}</td>
-                <td class="${riskClass}">${phishingPercent}%</td>
+                <td class="${riskClass} phishing-cell" onmousemove="moveTooltip(event)">
+                    ${phishingPercent}%
+                    <span class="tooltip-text">
+                        ${buildPhishingTooltip(email)}
+                    </span>
+                </td>
             `;
 
             table.appendChild(row);
@@ -270,6 +330,7 @@ function clearFilters() {
     document.getElementById("sender").value = "";
     document.getElementById("subject").value = "";
     document.getElementById("max_phishing").value = "";
+    document.getElementById("sort_by").value = "";
 
     loadEmails();
 }
@@ -279,6 +340,64 @@ window.onload = async function () {
     await loadSuggestions();
     await loadEmails();
 };
+
+function buildPhishingTooltip(email) {
+    const breakdown = email.phishing_breakdown || {};
+
+    const labels = {
+        urgency: "Urgencia",
+        sensitive_data_request: "Datos sensibles",
+        suspicious_links_or_actions: "Enlaces/acciones",
+        suspicious_sender: "Remitente",
+        alarmist_language: "Lenguaje alarmista",
+        impersonation: "Suplantación"
+    };
+
+    let html = "";
+
+    Object.keys(labels).forEach(key => {
+        const rawValue = breakdown[key];
+
+        const value = rawValue !== undefined && rawValue !== null
+            ? Number(rawValue)
+            : 0;
+
+        const percent = (value * 100).toFixed(1);
+
+        html += `
+            <div class="tooltip-row">
+                <span>${labels[key]}</span>
+                <strong>${percent}%</strong>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function moveTooltip(event) {
+    const tooltip = event.currentTarget.querySelector(".tooltip-text");
+
+    if (!tooltip) return;
+
+    const offset = 12;
+    const tooltipWidth = 260;
+    const tooltipHeight = 150;
+
+    let left = event.clientX + offset;
+    let top = event.clientY + offset;
+
+    if (left + tooltipWidth > window.innerWidth) {
+        left = event.clientX - tooltipWidth - offset;
+    }
+
+    if (top + tooltipHeight > window.innerHeight) {
+        top = event.clientY - tooltipHeight - offset;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
 </script>
 
 </body>

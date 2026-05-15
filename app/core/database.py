@@ -29,6 +29,7 @@ class Classification(Base):
 
     id              = Column(Integer, primary_key=True, index=True)
     timestamp       = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    email_timestamp = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Datos del correo
     message_id      = Column(String(255), unique=True, index=True)  
@@ -38,6 +39,8 @@ class Classification(Base):
     gmail_message_id = Column(String(255), nullable=True)
     gmail_url = Column(Text, nullable=True)
 
+    phishing_breakdown = Column(Text, nullable=True)
+    
     # Resultado de la clasificación
     category        = Column(String(50), index=True)               
     label_name      = Column(String(100))                             
@@ -45,6 +48,7 @@ class Classification(Base):
     phishing_score  = Column(Float, default=0.0)
     engine_used     = Column(String(20))                              
     explanation     = Column(Text, nullable=True)
+
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

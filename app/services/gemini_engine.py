@@ -29,6 +29,26 @@ Aumenta el "phishing_score" si detectas:
 - Solicitud de transferencia de dinero urgente
 
 =====================
+DESGLOSE DEL RIESGO DE PHISHING
+=====================
+
+Además del phishing_score total, debes devolver un desglose llamado "phishing_breakdown".
+
+Cada valor del desglose debe ser un número entre 0.0 y 1.0.
+
+El desglose debe explicar qué factores contribuyen al phishing_score:
+
+- urgency: urgencia artificial o presión temporal.
+- sensitive_data_request: solicitud de contraseñas, DNI, datos bancarios, tarjetas, códigos o información personal.
+- suspicious_links_or_actions: enlaces, botones, verificaciones o acciones sospechosas solicitadas al usuario.
+- suspicious_sender: remitente extraño, dominio sospechoso o dirección que intenta parecer legítima.
+- alarmist_language: lenguaje amenazante, alarmista o manipulador.
+- impersonation: intento de suplantar a una empresa, banco, universidad, administración pública o servicio conocido.
+
+La suma aproximada de los valores de phishing_breakdown debe ser coherente con phishing_score.
+Si un factor no aparece en el correo, su valor debe ser 0.0.
+
+=====================
 REGLAS IMPORTANTES
 =====================
 
@@ -36,6 +56,7 @@ REGLAS IMPORTANTES
 - Basa tu decisión en subject, sender, snippet y body
 - El "confidence" debe reflejar qué tan segura es la clasificación
 - El "phishing_score" debe reflejar el nivel de riesgo de fraude
+- El "phishing_breakdown" debe justificar el phishing_score por factores
 - Devuelve SOLO JSON válido, sin explicaciones fuera del JSON
 
 =====================
@@ -48,6 +69,14 @@ Devuelve SOLO este JSON válido:
   "category": "<una de las categorías disponibles>",
   "confidence": <número entre 0.0 y 1.0>,
   "phishing_score": <número entre 0.0 y 1.0>,
+  "phishing_breakdown": {
+    "urgency": <número entre 0.0 y 1.0>,
+    "sensitive_data_request": <número entre 0.0 y 1.0>,
+    "suspicious_links_or_actions": <número entre 0.0 y 1.0>,
+    "suspicious_sender": <número entre 0.0 y 1.0>,
+    "alarmist_language": <número entre 0.0 y 1.0>,
+    "impersonation": <número entre 0.0 y 1.0>
+  },
   "explanation": "<una sola frase breve en español explicando la decisión>"
 }
 """
@@ -59,6 +88,16 @@ De: {sender}
 Asunto: {subject}
 Fragmento: {snippet}
 Cuerpo: {body}"""
+
+
+PHISHING_BREAKDOWN_KEYS = {
+    "urgency": 0.0,
+    "sensitive_data_request": 0.0,
+    "suspicious_links_or_actions": 0.0,
+    "suspicious_sender": 0.0,
+    "alarmist_language": 0.0,
+    "impersonation": 0.0,
+}
 
 
 def get_model():
@@ -86,6 +125,21 @@ def _clean_raw_response(raw: str) -> str:
     return raw.strip()
 
 
+def _normalize_breakdown(value) -> dict:
+    if not isinstance(value, dict):
+        value = {}
+
+    normalized = {}
+
+    for key, default_value in PHISHING_BREAKDOWN_KEYS.items():
+        normalized[key] = round(
+            max(0.0, min(1.0, _safe_float(value.get(key, default_value)))),
+            3,
+        )
+
+    return normalized
+
+
 def _build_categories_block(available_categories: list[str] | None) -> tuple[str, set[str]]:
     """
     Construye el bloque de categorías para Gemini y devuelve también
@@ -111,10 +165,12 @@ Debes clasificar el correo usando ÚNICAMENTE una de estas categorías:
 Reglas sobre categorías:
 - La categoría devuelta debe coincidir EXACTAMENTE con una de la lista anterior.
 - No inventes categorías nuevas.
-- Si detectas fraude o phishing, usa "TFG/Phishing" si está disponible.
-- Si detectas fraude o phishing y "TFG/Phishing" no está disponible, usa "phishing" si está disponible.
-- Si no tienes suficiente información, usa "TFG/Revisar" si está disponible.
-- Si no tienes suficiente información y "TFG/Revisar" no está disponible, usa "revisar" si está disponible.
+- Si detectas fraude o phishing, usa "Phishing" si está disponible.
+- Si detectas fraude o phishing y "Phishing" no está disponible, usa "TFG/Phishing" si está disponible.
+- Si detectas fraude o phishing y ninguna de las anteriores está disponible, usa "phishing" si está disponible.
+- Si no tienes suficiente información, usa "Revisar" si está disponible.
+- Si no tienes suficiente información y "Revisar" no está disponible, usa "TFG/Revisar" si está disponible.
+- Si no tienes suficiente información y ninguna de las anteriores está disponible, usa "revisar" si está disponible.
 """
 
     return categories_block, set(categories)
@@ -146,7 +202,7 @@ async def classify(
                 f"{SYSTEM_PROMPT}\n\n{categories_block}\n\n{prompt}",
                 generation_config=genai.GenerationConfig(
                     temperature=0,
-                    max_output_tokens=300,
+                    max_output_tokens=500,
                 ),
             ),
             timeout=20,
@@ -166,7 +222,9 @@ async def classify(
     category = parsed.get("category")
 
     if category not in valid_categories:
-        if "TFG/Revisar" in valid_categories:
+        if "Revisar" in valid_categories:
+            category = "Revisar"
+        elif "TFG/Revisar" in valid_categories:
             category = "TFG/Revisar"
         elif "revisar" in valid_categories:
             category = "revisar"
@@ -175,13 +233,15 @@ async def classify(
 
     confidence = round(
         max(0.0, min(1.0, _safe_float(parsed.get("confidence", 0.0)))),
-        3
+        3,
     )
 
     phishing_score = round(
         max(0.0, min(1.0, _safe_float(parsed.get("phishing_score", 0.0)))),
-        3
+        3,
     )
+
+    phishing_breakdown = _normalize_breakdown(parsed.get("phishing_breakdown"))
 
     explanation = parsed.get("explanation") or "Sin explicación."
 
@@ -189,5 +249,6 @@ async def classify(
         "category": category,
         "confidence": confidence,
         "phishing_score": phishing_score,
+        "phishing_breakdown": phishing_breakdown,
         "explanation": explanation,
     }

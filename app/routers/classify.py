@@ -1,3 +1,4 @@
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
@@ -42,6 +43,7 @@ async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db
         if existing:
             existing.gmail_message_id = email.gmail_message_id
             existing.gmail_url = email.gmail_url
+            existing.email_timestamp = email.email_timestamp
 
             existing.subject = email.subject
             existing.sender = email.sender
@@ -49,12 +51,14 @@ async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db
             existing.label_name = result["label_name"]
             existing.confidence = result["confidence"]
             existing.phishing_score = result["phishing_score"]
+            existing.phishing_breakdown = json.dumps(result.get("phishing_breakdown", {}), ensure_ascii=False)
             existing.engine_used = result["engine_used"]
             existing.explanation = result["explanation"]
         else:
             record = Classification(
                 message_id=email.message_id,
                 gmail_message_id=email.gmail_message_id,
+                email_timestamp=email.email_timestamp,
                 gmail_url=email.gmail_url,
                 subject=email.subject,
                 sender=email.sender,
@@ -62,6 +66,7 @@ async def classify_endpoint(email: ClassifyRequest, db: Session = Depends(get_db
                 label_name=result["label_name"],
                 confidence=result["confidence"],
                 phishing_score=result["phishing_score"],
+                phishing_breakdown=json.dumps(result.get("phishing_breakdown", {}), ensure_ascii=False),
                 engine_used=result["engine_used"],
                 explanation=result["explanation"],
             )
